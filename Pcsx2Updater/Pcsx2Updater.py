@@ -1,8 +1,6 @@
-import requests
-import os
-import re
-import io
+import requests, io, re, os
 from zipfile import ZipFile
+from requests.models import Response
 import Pcsx2Updater.Contants as const
 from Pcsx2Updater.GithubApi import GithubActionsApi
 
@@ -13,11 +11,13 @@ class Pcsx2Updater:
         self.listDownloads()
 
     def download(self,artifact):
-        file = requests.get(artifact['download_url'],headers=const.HEADERS)
-        genericName = self.getGenericName(artifact["name"])
-        #print(file.content)
-        self.writeFile(genericName,file.content)
-        ##return file
+        return requests.get(artifact['download_url'],headers=const.HEADER_TOKEN,stream=True)
+
+    def update(self,artifact):
+        file = self.download(artifact)
+        self.writeFile(artifact["name"],file,artifact["size_in_bytes"])
+        self.extractFile(artifact["name"])
+        os.unlink(f"{artifact['name']}.zip")
 
     def getGenericName(self,name):
         if re.search("AVX2", name, flags=re.IGNORECASE) is None:
@@ -36,18 +36,24 @@ class Pcsx2Updater:
             count+=1
 
         artifactId = int(input("Digite o numero da versão que deseja baixar: "))
-        self.download(artifacts['artifacts'][artifactId - 1])
+        self.update(artifacts['artifacts'][artifactId - 1])
     
-    def writeFile(self, fileName, fileContent):
+    def writeFile(self, fileName, fileContent: Response, size_in_bytes):
+        print(f"Baixando {fileName}...")
+        
+        CHUNCK = 1024**2
+        
+        output_file = io.FileIO(f'{self.rootPath}/{fileName}.zip', "w")
 
-        file = open(f'{self.rootPath}/{fileName}.zip', "wb")
+        for chunk in fileContent.iter_content(chunk_size=CHUNCK):
+            output_file.write(chunk)
 
-        file.write(fileContent)
+        output_file.close()
 
-        file.close()
-    
     def extractFile(self,fileName):
-        with ZipFile(f'{self.rootPath}/{fileName}','r') as zip:
-            zip.extractall(f'{self.rootPath}/{fileName}')
+        print("Extraindo...")
+        genericName = self.getGenericName(fileName)
+        with ZipFile(f'{self.rootPath}/{fileName}.zip','r') as zip:
+            zip.extractall(f'{self.rootPath}/{genericName}')
 
 

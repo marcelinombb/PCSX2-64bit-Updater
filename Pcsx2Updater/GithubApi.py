@@ -14,13 +14,20 @@ class GithubActionsApi:
     def getLastWorkflowRunInfo(self):
         run = self.get(const.WINDOWS_WORFLOW)
         data = run.json()
-        return {"id": str(data["workflow_runs"][0]["id"]), "created_at": data["workflow_runs"][0]["created_at"]}
+        return {
+            "id": str(data["workflow_runs"][0]["id"]), 
+            "created_at": data["workflow_runs"][0]["created_at"]
+            }
     
     def getRunArtifacts(self):
         workflow = self.getLastWorkflowRunInfo()
         route = const.ARTIFACTS.replace("{id}", workflow['id'])
         artifacts = self.get(route)
-        return {"artifacts": self.filterAtifacts(artifacts.json()["artifacts"]), "workflowInfo" : workflow}
+        artifact = {
+            "artifacts": self.filterAtifacts(artifacts.json()["artifacts"]), 
+            "workflowInfo" : workflow
+            }
+        return artifact
     
     def is64Bit(self,name) ->bool:
         if re.search("64bit",name,flags=re.IGNORECASE) is None:
@@ -35,7 +42,8 @@ class GithubActionsApi:
                 filteredArtifacts.append({
                     "id":artifact["id"],
                     "name": artifact["name"],
-                    "download_url": artifact["archive_download_url"]
+                    "download_url": artifact["archive_download_url"],
+                    "size_in_bytes": int(artifact["size_in_bytes"])
                 })
 
         return filteredArtifacts
